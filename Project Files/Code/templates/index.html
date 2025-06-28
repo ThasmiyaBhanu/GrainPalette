@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rice Variety Classifier</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+        }
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            margin-top: 50px;
+        }
+        .upload-area {
+            border: 3px dashed #007bff;
+            border-radius: 15px;
+            padding: 50px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            border-color: #0056b3;
+            background: #e3f2fd;
+        }
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .preview-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .preview-image {
+            max-width: 300px;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        .result-card {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        .probability-bar {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            height: 25px;
+            margin: 8px 0;
+            overflow: hidden;
+        }
+        .probability-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #fff, #f0f0f0);
+            border-radius: 10px;
+            transition: width 0.8s ease;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            color: #333;
+            font-weight: bold;
+        }
+        .btn-custom {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.4);
+        }
+        .loading {
+            display: none;
+        }
+        .spinner-border {
+            width: 2rem;
+            height: 2rem;
+        }
+        .rice-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .header-title {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: bold;
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="main-container">
+<h1 class="header-title">
+                        <i class="fas fa-seedling"></i> Rice Variety Classifier
+                    </h1>
+<div class="d-flex justify-content-end mb-3">
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-user"></i>
+            {{ session['username'] if 'username' in session else 'Unknown' }}
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+            <li><a class="dropdown-item" href="/switch_user"><i class="fas fa-exchange-alt me-2"></i>Switch User</a></li>
+            <li><a class="dropdown-item text-danger" href="/logout"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+        </ul>
+    </div>
+</div>
+                    <p class="text-center text-muted mb-4">Upload an image of rice to identify its variety using AI-powered classification</p>
+                    
+                    <!-- Upload Area -->
+                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                        <h4>Drop your rice image here or click to upload</h4>
+                        <p class="text-muted">Supports JPG, PNG, GIF formats (Max 16MB)</p>
+                        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    </div>
+                    
+                    <!-- Preview Area -->
+                    <div class="preview-container" id="previewContainer" style="display: none;">
+                        <img id="previewImage" class="preview-image" alt="Preview">
+                        <div class="mt-3">
+                            <button class="btn btn-custom" id="predictBtn" onclick="classifyImage()">
+                                <i class="fas fa-brain"></i> Classify Rice Variety
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Loading Indicator -->
+                    <div class="text-center loading" id="loadingIndicator">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Analyzing image...</p>
+                    </div>
+                    
+                    <!-- Results Area -->
+                    <div id="resultContainer" style="display: none;">
+                        <div class="result-card">
+                            <h3 class="mb-3"><i class="fas fa-check-circle"></i> Classification Results</h3>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h4>Predicted Variety:</h4>
+                                    <h2 id="predictedClass" class="fw-bold"></h2>
+                                </div>
+                                <div class="col-md-6">
+                                    <h4>Confidence:</h4>
+                                    <h2 id="confidence" class="fw-bold"></h2>
+                                </div>
+                            </div>
+                            
+                            <h4 class="mt-4 mb-3">All Probabilities:</h4>
+                            <div id="probabilitiesContainer"></div>
+                        </div>
+                        
+                        <!-- Rice Information -->
+                        <div class="rice-info" id="riceInfo">
+                            <h4><i class="fas fa-info-circle"></i> About this Rice Variety</h4>
+                            <p id="riceDescription"></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="text-center mt-4">
+                        <button class="btn btn-outline-primary" onclick="resetForm()" style="display: none;" id="resetBtn">
+                            <i class="fas fa-redo"></i> Upload Another Image
+                        </button>
+                        <a href="/history" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-history"></i> View History
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedFile = null;
+        
+        // Rice variety information
+        const riceInfo = {
+            'Arborio': 'Arborio is a short-grain rice variety from Italy, commonly used in risotto. It has a high starch content that creates a creamy texture when cooked.',
+            'Basmati': 'Basmati is a long-grain rice variety from India and Pakistan, known for its fragrant aroma and fluffy texture. It\'s commonly used in Indian and Middle Eastern cuisine.',
+            'Ipsala': 'Ipsala is a Turkish rice variety known for its unique characteristics and is primarily grown in the Ipsala region of Turkey.',
+            'Jasmine': 'Jasmine rice is a long-grain variety from Thailand, known for its subtle floral aroma and slightly sticky texture when cooked.',
+            'Karacadag': 'Karacadag is an ancient rice variety from Turkey, known for its nutritional value and distinctive characteristics.'
+        };
+        
+        // File input handling
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+        
+        // Drag and drop handling
+        const uploadArea = document.getElementById('uploadArea');
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+        
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+        
+        function handleFileSelect() {
+            const file = document.getElementById('fileInput').files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+        
+        function handleFile(file) {
+            selectedFile = file;
+            
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file.');
+                return;
+            }
+            
+            // Validate file size (16MB)
+            if (file.size > 16 * 1024 * 1024) {
+                alert('File size must be less than 16MB.');
+                return;
+            }
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('previewImage').src = e.target.result;
+                document.getElementById('previewContainer').style.display = 'block';
+                document.getElementById('resultContainer').style.display = 'none';
+                document.getElementById('resetBtn').style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function classifyImage() {
+            if (!selectedFile) {
+                alert('Please select an image first.');
+                return;
+            }
+            
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('predictBtn').disabled = true;
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            
+            // Send request
+            fetch('/predict', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('predictBtn').disabled = false;
+                
+                if (data.success) {
+                    displayResults(data);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('predictBtn').disabled = false;
+                alert('An error occurred: ' + error.message);
+            });
+        }
+        
+        function displayResults(data) {
+            // Display main results
+            document.getElementById('predictedClass').textContent = data.predicted_class;
+            document.getElementById('confidence').textContent = data.confidence + '%';
+            
+            // Display all probabilities
+            const probabilitiesContainer = document.getElementById('probabilitiesContainer');
+            probabilitiesContainer.innerHTML = '';
+            
+            Object.entries(data.all_probabilities).forEach(([variety, probability]) => {
+                const probabilityElement = document.createElement('div');
+                probabilityElement.innerHTML = `
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>${variety}</span>
+                        <span>${probability}%</span>
+                    </div>
+                    <div class="probability-bar">
+                        <div class="probability-fill" style="width: ${probability}%">
+                            ${probability}%
+                        </div>
+                    </div>
+                `;
+                probabilitiesContainer.appendChild(probabilityElement);
+            });
+            
+            // Display rice information
+            document.getElementById('riceDescription').textContent = riceInfo[data.predicted_class] || 'Information not available for this variety.';
+            
+            // Show results and reset button
+            document.getElementById('resultContainer').style.display = 'block';
+            document.getElementById('resetBtn').style.display = 'inline-block';
+        }
+        
+        function resetForm() {
+            selectedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('previewContainer').style.display = 'none';
+            document.getElementById('resultContainer').style.display = 'none';
+            document.getElementById('resetBtn').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
+
